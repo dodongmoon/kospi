@@ -147,9 +147,8 @@ function renderChart(pastSeriesRaw, currentSeriesRaw, mode) {
   const rebasedYaxis = {
     type: "log",
     title: "코스피 지수 (환산, log)",
-    tickvals: [2000, 4000, 8000, 16000, 32000],
-    ticktext: ["2,000", "4,000", "8,000", "16,000", "32,000"],
-    range: [Math.log10(2000), Math.log10(32000)],
+    autorange: true,
+    tickformat: ",d",
     gridcolor: "#e6e6e6",
     zeroline: false,
   };
@@ -157,6 +156,7 @@ function renderChart(pastSeriesRaw, currentSeriesRaw, mode) {
   const normalizedYaxis = {
     type: "log",
     title: "상승률 지수 (시작=100, log)",
+    autorange: true,
     gridcolor: "#e6e6e6",
     zeroline: false,
   };
