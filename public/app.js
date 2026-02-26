@@ -166,19 +166,34 @@ function renderChart(pastSeriesRaw, currentSeriesRaw, mode) {
     paper_bgcolor: "white",
     plot_bgcolor: "white",
     hovermode: "x unified",
+    dragmode: false,
     legend: { orientation: "h", x: 0.02, y: 1.1 },
     xaxis: {
       title: "경과 개월 (윗줄=2023 시작, 아랫줄=1983 시작)",
       range: [0, PERIOD_MONTHS],
       tickvals: ticks.values,
       ticktext: ticks.text,
+      fixedrange: true,
+      showspikes: true,
+      spikemode: "across",
+      spikecolor: "#999999",
+      spikethickness: 1,
       gridcolor: "#e6e6e6",
       zeroline: false,
     },
-    yaxis: mode === "rebased" ? rebasedYaxis : normalizedYaxis,
+    yaxis: {
+      ...(mode === "rebased" ? rebasedYaxis : normalizedYaxis),
+      fixedrange: true,
+    },
   };
 
-  Plotly.newPlot(chart, traces, layout, { responsive: true, displaylogo: false });
+  Plotly.newPlot(chart, traces, layout, {
+    responsive: true,
+    displaylogo: false,
+    displayModeBar: false,
+    scrollZoom: false,
+    doubleClick: false,
+  });
 }
 
 function setupForbiddenButton() {

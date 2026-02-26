@@ -141,4 +141,10 @@ body {
   .stats {
     grid-template-columns: 1fr;
   }
+
+  #chart {
+    height: 50vh;
+    min-height: 320px;
+    max-height: 460px;
+  }
 }
