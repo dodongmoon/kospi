@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>코스피 3저호황 비교</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" defer></script>
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <p class="kicker">KOSPI Pattern Overlay (Log Scale)</p>
+        <h1>3저 호황 vs 현재 코스피 비교</h1>
+        <p class="subtitle">코스피 2만 간다</p>
+      </header>
+
+      <section class="controls">
+        <label for="mode">비교 모드</label>
+        <select id="mode">
+          <option value="rebased" selected>1983 구간을 2023 시작값으로 환산</option>
+          <option value="normalized">상승률 (시작점=100)</option>
+        </select>
+      </section>
+
+      <section class="stats" id="stats"></section>
+
+      <section class="chart-wrap">
+        <div id="chart"></div>
+      </section>
+
+      <section class="danger-zone">
+        <button id="forbidden-btn" class="forbidden-btn" type="button">절대 누르지 마시오</button>
+        <div id="sugar-result" class="sugar-result" hidden>
+          <img id="sugar-image" class="sugar-image" alt="랜덤 이미지" loading="lazy" />
+        </div>
+      </section>
+
+      <footer class="source">
+        <p>
+          데이터: stooq <code>^kospi</code> 일봉, 시작일 다음 첫 거래일 기준으로 계산.
+        </p>
+        <p>
+          같은 경과시점(개월) 기준으로 두 구간을 겹쳐 비교합니다. Y축은 로그 스케일로
+          고정됩니다. 매일 종가 기준으로 업데이트 됩니다.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

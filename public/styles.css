@@ -1,0 +1,144 @@
+:root {
+  --bg: #f4efe4;
+  --panel: #fff9ee;
+  --text: #2b2620;
+  --muted: #6f665d;
+  --line-current: #191919;
+  --line-past: #d4a93b;
+  --border: #ddd2c2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 15% 20%, #ffffff 0%, transparent 45%),
+    radial-gradient(circle at 90% 10%, #f8e8bb 0%, transparent 35%),
+    var(--bg);
+}
+
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.hero h1 {
+  margin: 8px 0;
+  font-size: clamp(1.35rem, 2vw, 2.1rem);
+}
+
+.subtitle {
+  margin: 4px 0 10px;
+  font-weight: 700;
+  color: #8c6d12;
+}
+
+.kicker {
+  margin: 0;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+}
+
+.controls {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.controls select {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.stat {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.stat .label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.stat .value {
+  display: block;
+  margin-top: 6px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.chart-wrap {
+  margin-top: 14px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+#chart {
+  width: 100%;
+  height: min(72vh, 680px);
+}
+
+.source {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.danger-zone {
+  margin-top: 22px;
+  text-align: center;
+}
+
+.forbidden-btn {
+  border: 1px solid #8e1a1a;
+  background: #b81f1f;
+  color: #fff;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+.forbidden-btn:hover {
+  background: #a21b1b;
+}
+
+.sugar-result {
+  margin-top: 12px;
+}
+
+.sugar-image {
+  width: min(100%, 460px);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+@media (max-width: 760px) {
+  .stats {
+    grid-template-columns: 1fr;
+  }
+}
