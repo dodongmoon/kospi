@@ -146,21 +146,22 @@ function findNearestPointIndex(xValues, targetX) {
 }
 
 function setupMobileTouchHover(chart) {
-  if (!("ontouchstart" in window) || !Plotly?.Fx?.hover) return;
+  if (!Plotly?.Fx?.hover) return;
 
   if (typeof chart.__touchHoverCleanup === "function") {
     chart.__touchHoverCleanup();
   }
 
-  const onTouchMove = (event) => {
-    const touch = event.touches?.[0];
-    if (!touch) return;
+  const isTouchLikeDevice =
+    window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
+  if (!isTouchLikeDevice) return;
 
+  const updateHoverByClientX = (clientX) => {
     const xaxis = chart?._fullLayout?.xaxis;
     if (!xaxis || !xaxis._length) return;
 
     const rect = chart.getBoundingClientRect();
-    const pointerX = touch.clientX - rect.left;
+    const pointerX = clientX - rect.left;
     const plotX = pointerX - xaxis._offset;
     const ratio = Math.max(0, Math.min(1, plotX / xaxis._length));
     const xRange = xaxis.range || [0, PERIOD_MONTHS];
@@ -175,23 +176,69 @@ function setupMobileTouchHover(chart) {
 
     if (hoverPoints.length) {
       Plotly.Fx.hover(chart, hoverPoints, "xy");
-      event.preventDefault();
     }
   };
 
-  const onTouchStart = (event) => onTouchMove(event);
-  const onTouchEnd = () => Plotly.Fx.unhover(chart);
+  let touching = false;
+
+  const onTouchStart = (event) => {
+    const touch = event.touches?.[0];
+    if (!touch) return;
+    touching = true;
+    event.preventDefault();
+    updateHoverByClientX(touch.clientX);
+  };
+
+  const onTouchMove = (event) => {
+    if (!touching) return;
+    const touch = event.touches?.[0];
+    if (!touch) return;
+    event.preventDefault();
+    updateHoverByClientX(touch.clientX);
+  };
+
+  const onTouchEnd = () => {
+    touching = false;
+    Plotly.Fx.unhover(chart);
+  };
+
+  const onPointerDown = (event) => {
+    if (event.pointerType !== "touch") return;
+    touching = true;
+    event.preventDefault();
+    updateHoverByClientX(event.clientX);
+  };
+
+  const onPointerMove = (event) => {
+    if (event.pointerType !== "touch" || !touching) return;
+    event.preventDefault();
+    updateHoverByClientX(event.clientX);
+  };
+
+  const onPointerUp = (event) => {
+    if (event.pointerType !== "touch") return;
+    touching = false;
+    Plotly.Fx.unhover(chart);
+  };
 
   chart.addEventListener("touchstart", onTouchStart, { passive: false });
   chart.addEventListener("touchmove", onTouchMove, { passive: false });
   chart.addEventListener("touchend", onTouchEnd, { passive: true });
   chart.addEventListener("touchcancel", onTouchEnd, { passive: true });
+  chart.addEventListener("pointerdown", onPointerDown, { passive: false });
+  chart.addEventListener("pointermove", onPointerMove, { passive: false });
+  chart.addEventListener("pointerup", onPointerUp, { passive: true });
+  chart.addEventListener("pointercancel", onPointerUp, { passive: true });
 
   chart.__touchHoverCleanup = () => {
     chart.removeEventListener("touchstart", onTouchStart);
     chart.removeEventListener("touchmove", onTouchMove);
     chart.removeEventListener("touchend", onTouchEnd);
     chart.removeEventListener("touchcancel", onTouchEnd);
+    chart.removeEventListener("pointerdown", onPointerDown);
+    chart.removeEventListener("pointermove", onPointerMove);
+    chart.removeEventListener("pointerup", onPointerUp);
+    chart.removeEventListener("pointercancel", onPointerUp);
   };
 }
 
