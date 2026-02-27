@@ -156,6 +156,9 @@ function setupMobileTouchHover(chart) {
     window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
   if (!isTouchLikeDevice) return;
 
+  let lastClientX = null;
+  let rafId = null;
+
   const updateHoverByClientX = (clientX) => {
     const xaxis = chart?._fullLayout?.xaxis;
     if (!xaxis || !xaxis._length) return;
@@ -175,8 +178,19 @@ function setupMobileTouchHover(chart) {
     });
 
     if (hoverPoints.length) {
-      Plotly.Fx.hover(chart, hoverPoints, "xy");
+      Plotly.Fx.hover(chart, hoverPoints);
     }
+  };
+
+  const requestHoverUpdate = (clientX) => {
+    lastClientX = clientX;
+    if (rafId !== null) return;
+    rafId = window.requestAnimationFrame(() => {
+      rafId = null;
+      if (lastClientX !== null) {
+        updateHoverByClientX(lastClientX);
+      }
+    });
   };
 
   let touching = false;
@@ -186,7 +200,7 @@ function setupMobileTouchHover(chart) {
     if (!touch) return;
     touching = true;
     event.preventDefault();
-    updateHoverByClientX(touch.clientX);
+    requestHoverUpdate(touch.clientX);
   };
 
   const onTouchMove = (event) => {
@@ -194,11 +208,12 @@ function setupMobileTouchHover(chart) {
     const touch = event.touches?.[0];
     if (!touch) return;
     event.preventDefault();
-    updateHoverByClientX(touch.clientX);
+    requestHoverUpdate(touch.clientX);
   };
 
   const onTouchEnd = () => {
     touching = false;
+    lastClientX = null;
     Plotly.Fx.unhover(chart);
   };
 
@@ -206,39 +221,47 @@ function setupMobileTouchHover(chart) {
     if (event.pointerType !== "touch") return;
     touching = true;
     event.preventDefault();
-    updateHoverByClientX(event.clientX);
+    requestHoverUpdate(event.clientX);
   };
 
   const onPointerMove = (event) => {
     if (event.pointerType !== "touch" || !touching) return;
     event.preventDefault();
-    updateHoverByClientX(event.clientX);
+    requestHoverUpdate(event.clientX);
   };
 
   const onPointerUp = (event) => {
     if (event.pointerType !== "touch") return;
     touching = false;
+    lastClientX = null;
     Plotly.Fx.unhover(chart);
   };
 
-  chart.addEventListener("touchstart", onTouchStart, { passive: false });
-  chart.addEventListener("touchmove", onTouchMove, { passive: false });
-  chart.addEventListener("touchend", onTouchEnd, { passive: true });
-  chart.addEventListener("touchcancel", onTouchEnd, { passive: true });
-  chart.addEventListener("pointerdown", onPointerDown, { passive: false });
-  chart.addEventListener("pointermove", onPointerMove, { passive: false });
-  chart.addEventListener("pointerup", onPointerUp, { passive: true });
-  chart.addEventListener("pointercancel", onPointerUp, { passive: true });
+  const plotLayer = chart.querySelector(".nsewdrag") || chart;
+  const moveTarget = window;
+
+  plotLayer.addEventListener("touchstart", onTouchStart, { passive: false, capture: true });
+  moveTarget.addEventListener("touchmove", onTouchMove, { passive: false, capture: true });
+  moveTarget.addEventListener("touchend", onTouchEnd, { passive: true, capture: true });
+  moveTarget.addEventListener("touchcancel", onTouchEnd, { passive: true, capture: true });
+  plotLayer.addEventListener("pointerdown", onPointerDown, { passive: false, capture: true });
+  moveTarget.addEventListener("pointermove", onPointerMove, { passive: false, capture: true });
+  moveTarget.addEventListener("pointerup", onPointerUp, { passive: true, capture: true });
+  moveTarget.addEventListener("pointercancel", onPointerUp, { passive: true, capture: true });
 
   chart.__touchHoverCleanup = () => {
-    chart.removeEventListener("touchstart", onTouchStart);
-    chart.removeEventListener("touchmove", onTouchMove);
-    chart.removeEventListener("touchend", onTouchEnd);
-    chart.removeEventListener("touchcancel", onTouchEnd);
-    chart.removeEventListener("pointerdown", onPointerDown);
-    chart.removeEventListener("pointermove", onPointerMove);
-    chart.removeEventListener("pointerup", onPointerUp);
-    chart.removeEventListener("pointercancel", onPointerUp);
+    plotLayer.removeEventListener("touchstart", onTouchStart, true);
+    moveTarget.removeEventListener("touchmove", onTouchMove, true);
+    moveTarget.removeEventListener("touchend", onTouchEnd, true);
+    moveTarget.removeEventListener("touchcancel", onTouchEnd, true);
+    plotLayer.removeEventListener("pointerdown", onPointerDown, true);
+    moveTarget.removeEventListener("pointermove", onPointerMove, true);
+    moveTarget.removeEventListener("pointerup", onPointerUp, true);
+    moveTarget.removeEventListener("pointercancel", onPointerUp, true);
+    if (rafId !== null) {
+      window.cancelAnimationFrame(rafId);
+      rafId = null;
+    }
   };
 }
 
