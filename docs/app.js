@@ -218,7 +218,9 @@ function renderChart(pastSeriesRaw, currentSeriesRaw, mode) {
     type: "log",
     title: "코스피 지수 (환산, log)",
     autorange: true,
-    tickformat: ",d",
+    tickmode: "array",
+    tickvals: [2000, 4000, 8000, 16000],
+    ticktext: ["2,000", "4,000", "8,000", "16,000"],
     gridcolor: "#e6e6e6",
     zeroline: false,
   };
