@@ -145,123 +145,147 @@ function findNearestPointIndex(xValues, targetX) {
   return prevDist <= leftDist ? prev : left;
 }
 
-function setupMobileTouchHover(chart) {
-  if (!Plotly?.Fx?.hover) return;
+function ensureMobileHoverUi(chart) {
+  let line = chart.querySelector(".mobile-touch-line");
+  let card = chart.querySelector(".mobile-touch-card");
 
+  if (!line) {
+    line = document.createElement("div");
+    line.className = "mobile-touch-line";
+    line.hidden = true;
+    chart.appendChild(line);
+  }
+
+  if (!card) {
+    card = document.createElement("div");
+    card.className = "mobile-touch-card";
+    card.hidden = true;
+    chart.appendChild(card);
+  }
+
+  return { line, card };
+}
+
+function setupMobileTouchHover(chart, context) {
   if (typeof chart.__touchHoverCleanup === "function") {
     chart.__touchHoverCleanup();
   }
 
-  const isTouchLikeDevice =
-    window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
-  if (!isTouchLikeDevice) return;
+  if (!isMobileView()) {
+    const oldLine = chart.querySelector(".mobile-touch-line");
+    const oldCard = chart.querySelector(".mobile-touch-card");
+    if (oldLine) oldLine.hidden = true;
+    if (oldCard) oldCard.hidden = true;
+    return;
+  }
 
-  let lastClientX = null;
-  let rafId = null;
+  const { line, card } = ensureMobileHoverUi(chart);
+  const { currentSeries, pastSeries, mode, scale } = context;
+  const xCurrent = currentSeries.points.map((p) => p.t);
+  const xPast = pastSeries.points.map((p) => p.t);
+  const isRebased = mode === "rebased";
 
-  const updateHoverByClientX = (clientX) => {
+  const renderByClientX = (clientX) => {
     const xaxis = chart?._fullLayout?.xaxis;
-    if (!xaxis || !xaxis._length) return;
+    const yaxis = chart?._fullLayout?.yaxis;
+    if (!xaxis || !yaxis || !xaxis._length || !yaxis._length) return;
 
     const rect = chart.getBoundingClientRect();
-    const pointerX = clientX - rect.left;
-    const plotX = pointerX - xaxis._offset;
+    const px = clientX - rect.left;
+    const plotX = px - xaxis._offset;
     const ratio = Math.max(0, Math.min(1, plotX / xaxis._length));
     const xRange = xaxis.range || [0, PERIOD_MONTHS];
     const xValue = xRange[0] + ratio * (xRange[1] - xRange[0]);
 
-    const hoverPoints = [];
-    (chart.data || []).forEach((trace, curveNumber) => {
-      if (!Array.isArray(trace.x) || trace.x.length === 0) return;
-      const pointNumber = findNearestPointIndex(trace.x, xValue);
-      hoverPoints.push({ curveNumber, pointNumber });
-    });
+    const curIdx = findNearestPointIndex(xCurrent, xValue);
+    const pastIdx = findNearestPointIndex(xPast, xValue);
+    const curPoint = currentSeries.points[curIdx];
+    const pastPoint = pastSeries.points[pastIdx];
+    if (!curPoint || !pastPoint) return;
 
-    if (hoverPoints.length) {
-      Plotly.Fx.hover(chart, hoverPoints);
-    }
+    const curVal = isRebased ? curPoint.close : curPoint.normalized;
+    const pastVal = isRebased ? pastPoint.close * scale : pastPoint.normalized;
+    const valueTitle = isRebased ? "환산 코스피" : "상승률지수";
+    const currentLabel = isRebased ? curVal.toFixed(2) : curVal.toFixed(2);
+    const pastLabel = isRebased ? pastVal.toFixed(2) : pastVal.toFixed(2);
+
+    line.style.left = `${xaxis._offset + ratio * xaxis._length}px`;
+    line.style.top = `${yaxis._offset}px`;
+    line.style.height = `${yaxis._length}px`;
+    line.hidden = false;
+
+    card.innerHTML = `
+      <div class="mobile-touch-date">${fmtYm(curPoint.date)}</div>
+      <div>2023~현재 ${valueTitle}: <b>${currentLabel}</b></div>
+      <div>1983.06~1990.06 ${valueTitle}: <b>${pastLabel}</b></div>
+    `;
+    card.hidden = false;
   };
 
-  const requestHoverUpdate = (clientX) => {
-    lastClientX = clientX;
-    if (rafId !== null) return;
-    rafId = window.requestAnimationFrame(() => {
-      rafId = null;
-      if (lastClientX !== null) {
-        updateHoverByClientX(lastClientX);
-      }
-    });
+  let active = false;
+  let pointerId = null;
+
+  const onPointerDown = (event) => {
+    if (event.pointerType !== "touch") return;
+    active = true;
+    pointerId = event.pointerId;
+    chart.setPointerCapture?.(pointerId);
+    event.preventDefault();
+    renderByClientX(event.clientX);
   };
 
-  let touching = false;
+  const onPointerMove = (event) => {
+    if (!active || event.pointerType !== "touch") return;
+    if (pointerId !== null && event.pointerId !== pointerId) return;
+    event.preventDefault();
+    renderByClientX(event.clientX);
+  };
+
+  const onPointerEnd = (event) => {
+    if (event.pointerType !== "touch") return;
+    active = false;
+    pointerId = null;
+    chart.releasePointerCapture?.(event.pointerId);
+  };
 
   const onTouchStart = (event) => {
     const touch = event.touches?.[0];
     if (!touch) return;
-    touching = true;
+    active = true;
     event.preventDefault();
-    requestHoverUpdate(touch.clientX);
+    renderByClientX(touch.clientX);
   };
 
   const onTouchMove = (event) => {
-    if (!touching) return;
+    if (!active) return;
     const touch = event.touches?.[0];
     if (!touch) return;
     event.preventDefault();
-    requestHoverUpdate(touch.clientX);
+    renderByClientX(touch.clientX);
   };
 
   const onTouchEnd = () => {
-    touching = false;
-    lastClientX = null;
-    Plotly.Fx.unhover(chart);
+    active = false;
   };
 
-  const onPointerDown = (event) => {
-    if (event.pointerType !== "touch") return;
-    touching = true;
-    event.preventDefault();
-    requestHoverUpdate(event.clientX);
-  };
-
-  const onPointerMove = (event) => {
-    if (event.pointerType !== "touch" || !touching) return;
-    event.preventDefault();
-    requestHoverUpdate(event.clientX);
-  };
-
-  const onPointerUp = (event) => {
-    if (event.pointerType !== "touch") return;
-    touching = false;
-    lastClientX = null;
-    Plotly.Fx.unhover(chart);
-  };
-
-  const plotLayer = chart.querySelector(".nsewdrag") || chart;
-  const moveTarget = window;
-
-  plotLayer.addEventListener("touchstart", onTouchStart, { passive: false, capture: true });
-  moveTarget.addEventListener("touchmove", onTouchMove, { passive: false, capture: true });
-  moveTarget.addEventListener("touchend", onTouchEnd, { passive: true, capture: true });
-  moveTarget.addEventListener("touchcancel", onTouchEnd, { passive: true, capture: true });
-  plotLayer.addEventListener("pointerdown", onPointerDown, { passive: false, capture: true });
-  moveTarget.addEventListener("pointermove", onPointerMove, { passive: false, capture: true });
-  moveTarget.addEventListener("pointerup", onPointerUp, { passive: true, capture: true });
-  moveTarget.addEventListener("pointercancel", onPointerUp, { passive: true, capture: true });
+  chart.addEventListener("pointerdown", onPointerDown, { passive: false, capture: true });
+  chart.addEventListener("pointermove", onPointerMove, { passive: false, capture: true });
+  chart.addEventListener("pointerup", onPointerEnd, { passive: true, capture: true });
+  chart.addEventListener("pointercancel", onPointerEnd, { passive: true, capture: true });
+  chart.addEventListener("touchstart", onTouchStart, { passive: false, capture: true });
+  chart.addEventListener("touchmove", onTouchMove, { passive: false, capture: true });
+  chart.addEventListener("touchend", onTouchEnd, { passive: true, capture: true });
+  chart.addEventListener("touchcancel", onTouchEnd, { passive: true, capture: true });
 
   chart.__touchHoverCleanup = () => {
-    plotLayer.removeEventListener("touchstart", onTouchStart, true);
-    moveTarget.removeEventListener("touchmove", onTouchMove, true);
-    moveTarget.removeEventListener("touchend", onTouchEnd, true);
-    moveTarget.removeEventListener("touchcancel", onTouchEnd, true);
-    plotLayer.removeEventListener("pointerdown", onPointerDown, true);
-    moveTarget.removeEventListener("pointermove", onPointerMove, true);
-    moveTarget.removeEventListener("pointerup", onPointerUp, true);
-    moveTarget.removeEventListener("pointercancel", onPointerUp, true);
-    if (rafId !== null) {
-      window.cancelAnimationFrame(rafId);
-      rafId = null;
-    }
+    chart.removeEventListener("pointerdown", onPointerDown, true);
+    chart.removeEventListener("pointermove", onPointerMove, true);
+    chart.removeEventListener("pointerup", onPointerEnd, true);
+    chart.removeEventListener("pointercancel", onPointerEnd, true);
+    chart.removeEventListener("touchstart", onTouchStart, true);
+    chart.removeEventListener("touchmove", onTouchMove, true);
+    chart.removeEventListener("touchend", onTouchEnd, true);
+    chart.removeEventListener("touchcancel", onTouchEnd, true);
   };
 }
 
@@ -322,7 +346,7 @@ function renderChart(pastSeriesRaw, currentSeriesRaw, mode) {
     margin: { l: 60, r: 24, t: 24, b: mobile ? 46 : 70 },
     paper_bgcolor: "white",
     plot_bgcolor: "white",
-    hovermode: "x unified",
+    hovermode: mobile ? false : "x unified",
     dragmode: false,
     legend: { orientation: "h", x: 0.02, y: 1.1 },
     xaxis: {
@@ -333,7 +357,7 @@ function renderChart(pastSeriesRaw, currentSeriesRaw, mode) {
       automargin: true,
       ...(mobile ? { tickangle: 0 } : {}),
       fixedrange: true,
-      showspikes: true,
+      showspikes: !mobile,
       spikemode: "across",
       spikecolor: "#999999",
       spikethickness: 1,
@@ -353,7 +377,12 @@ function renderChart(pastSeriesRaw, currentSeriesRaw, mode) {
     scrollZoom: false,
     doubleClick: false,
   }).then(() => {
-    setupMobileTouchHover(chart);
+    setupMobileTouchHover(chart, {
+      currentSeries: currentSeriesRaw,
+      pastSeries: pastSeriesRaw,
+      mode,
+      scale,
+    });
   });
 }
 
