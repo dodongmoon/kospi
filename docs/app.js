@@ -111,6 +111,76 @@ function renderStats(pastData, currentData, mode) {
   `;
 }
 
+function findNearestPointIndex(xValues, targetX) {
+  let left = 0;
+  let right = xValues.length - 1;
+
+  while (left < right) {
+    const mid = Math.floor((left + right) / 2);
+    if (Number(xValues[mid]) < targetX) {
+      left = mid + 1;
+    } else {
+      right = mid;
+    }
+  }
+
+  if (left === 0) return 0;
+  const prev = left - 1;
+  const leftDist = Math.abs(Number(xValues[left]) - targetX);
+  const prevDist = Math.abs(Number(xValues[prev]) - targetX);
+  return prevDist <= leftDist ? prev : left;
+}
+
+function setupMobileTouchHover(chart) {
+  if (!("ontouchstart" in window) || !Plotly?.Fx?.hover) return;
+
+  if (typeof chart.__touchHoverCleanup === "function") {
+    chart.__touchHoverCleanup();
+  }
+
+  const onTouchMove = (event) => {
+    const touch = event.touches?.[0];
+    if (!touch) return;
+
+    const xaxis = chart?._fullLayout?.xaxis;
+    if (!xaxis || !xaxis._length) return;
+
+    const rect = chart.getBoundingClientRect();
+    const pointerX = touch.clientX - rect.left;
+    const plotX = pointerX - xaxis._offset;
+    const ratio = Math.max(0, Math.min(1, plotX / xaxis._length));
+    const xRange = xaxis.range || [0, PERIOD_MONTHS];
+    const xValue = xRange[0] + ratio * (xRange[1] - xRange[0]);
+
+    const hoverPoints = [];
+    (chart.data || []).forEach((trace, curveNumber) => {
+      if (!Array.isArray(trace.x) || trace.x.length === 0) return;
+      const pointNumber = findNearestPointIndex(trace.x, xValue);
+      hoverPoints.push({ curveNumber, pointNumber });
+    });
+
+    if (hoverPoints.length) {
+      Plotly.Fx.hover(chart, hoverPoints, "xy");
+      event.preventDefault();
+    }
+  };
+
+  const onTouchStart = (event) => onTouchMove(event);
+  const onTouchEnd = () => Plotly.Fx.unhover(chart);
+
+  chart.addEventListener("touchstart", onTouchStart, { passive: false });
+  chart.addEventListener("touchmove", onTouchMove, { passive: false });
+  chart.addEventListener("touchend", onTouchEnd, { passive: true });
+  chart.addEventListener("touchcancel", onTouchEnd, { passive: true });
+
+  chart.__touchHoverCleanup = () => {
+    chart.removeEventListener("touchstart", onTouchStart);
+    chart.removeEventListener("touchmove", onTouchMove);
+    chart.removeEventListener("touchend", onTouchEnd);
+    chart.removeEventListener("touchcancel", onTouchEnd);
+  };
+}
+
 function makeTrace(series, mode, scaleToCurrent = 1) {
   const isRebased = mode === "rebased";
   return {
@@ -193,6 +263,8 @@ function renderChart(pastSeriesRaw, currentSeriesRaw, mode) {
     displayModeBar: false,
     scrollZoom: false,
     doubleClick: false,
+  }).then(() => {
+    setupMobileTouchHover(chart);
   });
 }
 
