@@ -205,9 +205,10 @@ function setupMobileTouchHover(chart, context) {
 
     const curVal = isRebased ? curPoint.close : curPoint.normalized;
     const pastVal = isRebased ? pastPoint.close * scale : pastPoint.normalized;
+    const elapsedMonths = curPoint.t.toFixed(1);
     const valueTitle = isRebased ? "환산 코스피" : "상승률지수";
-    const currentLabel = isRebased ? curVal.toFixed(2) : curVal.toFixed(2);
-    const pastLabel = isRebased ? pastVal.toFixed(2) : pastVal.toFixed(2);
+    const currentValue = curVal.toFixed(2);
+    const pastValue = pastVal.toFixed(2);
 
     line.style.left = `${xaxis._offset + ratio * xaxis._length}px`;
     line.style.top = `${yaxis._offset}px`;
@@ -215,9 +216,16 @@ function setupMobileTouchHover(chart, context) {
     line.hidden = false;
 
     card.innerHTML = `
-      <div class="mobile-touch-date">${fmtYm(curPoint.date)}</div>
-      <div>2023~현재 ${valueTitle}: <b>${currentLabel}</b></div>
-      <div>1983.06~1990.06 ${valueTitle}: <b>${pastLabel}</b></div>
+      <div class="mobile-touch-date">경과 ${elapsedMonths}개월</div>
+      <div><b>2023~현재</b></div>
+      <div>실제 월: ${fmtYm(curPoint.date)}</div>
+      <div>${valueTitle}: <b>${currentValue}</b></div>
+      ${isRebased ? `<div>원본 종가: ${curPoint.close.toFixed(2)}</div>` : ""}
+      <div style="height:4px"></div>
+      <div><b>1983.06~1990.06</b></div>
+      <div>실제 월: ${fmtYm(pastPoint.date)}</div>
+      <div>${valueTitle}: <b>${pastValue}</b></div>
+      ${isRebased ? `<div>원본 종가: ${pastPoint.close.toFixed(2)}</div>` : ""}
     `;
     card.hidden = false;
   };
