@@ -71,9 +71,23 @@ function fmtYm(date) {
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function buildTicks() {
+function isMobileView() {
+  return window.matchMedia("(max-width: 760px)").matches;
+}
+
+function buildTicks(mobile) {
   const values = [];
   const text = [];
+
+  if (mobile) {
+    for (let m = 0; m <= PERIOD_MONTHS; m += 24) {
+      values.push(m);
+      const currentDate = addMonths(PERIODS.current.start, m);
+      text.push(fmtYm(currentDate));
+    }
+    return { values, text };
+  }
+
   for (let m = 0; m <= PERIOD_MONTHS; m += 12) {
     values.push(m);
     const currentDate = addMonths(PERIODS.current.start, m);
@@ -203,7 +217,8 @@ function makeTrace(series, mode, scaleToCurrent = 1) {
 
 function renderChart(pastSeriesRaw, currentSeriesRaw, mode) {
   const chart = document.getElementById("chart");
-  const ticks = buildTicks();
+  const mobile = isMobileView();
+  const ticks = buildTicks(mobile);
   const scale = currentSeriesRaw.startClose / pastSeriesRaw.startClose;
 
   const pastSeries = { ...PERIODS.past, points: pastSeriesRaw.points };
@@ -234,17 +249,19 @@ function renderChart(pastSeriesRaw, currentSeriesRaw, mode) {
   };
 
   const layout = {
-    margin: { l: 60, r: 24, t: 24, b: 70 },
+    margin: { l: 60, r: 24, t: 24, b: mobile ? 46 : 70 },
     paper_bgcolor: "white",
     plot_bgcolor: "white",
     hovermode: "x unified",
     dragmode: false,
     legend: { orientation: "h", x: 0.02, y: 1.1 },
     xaxis: {
-      title: "경과 개월 (윗줄=2023 시작, 아랫줄=1983 시작)",
+      title: mobile ? "현재 코스피 날짜" : "경과 개월 (윗줄=2023 시작, 아랫줄=1983 시작)",
       range: [0, PERIOD_MONTHS],
       tickvals: ticks.values,
       ticktext: ticks.text,
+      automargin: true,
+      ...(mobile ? { tickangle: 0 } : {}),
       fixedrange: true,
       showspikes: true,
       spikemode: "across",
@@ -303,6 +320,11 @@ async function bootstrap() {
       renderStats(past, current, mode);
     };
     modeSelect.addEventListener("change", draw);
+    let resizeTimer;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(draw, 120);
+    });
     draw();
   } catch (err) {
     document.getElementById("chart").innerHTML = `<pre>${err.message}</pre>`;
